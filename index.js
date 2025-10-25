@@ -8,7 +8,7 @@ const blogRoutes= require('./routes/blog');
 const apointmentRoutes=  require('./routes/appointment');
 const adminRoutes=  require('./routes/admin');
 const paymentRoutes=  require('./routes/payment');
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT;
 // middleware
 const app = express();
 app.use(cors());
@@ -26,5 +26,5 @@ app.use('/api/payment',paymentRoutes);
 
 
 connectDB().then(()=>{
-    app.listen(PORT, ()=> console.log('Server running on', PORT));
+    // app.listen(PORT, ()=> console.log('Server running on', PORT));
 });
