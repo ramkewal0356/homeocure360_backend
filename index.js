@@ -8,7 +8,7 @@ const blogRoutes= require('./routes/blog');
 const apointmentRoutes=  require('./routes/appointment');
 const adminRoutes=  require('./routes/admin');
 const paymentRoutes=  require('./routes/payment');
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 8000;
 // middleware
 const app = express();
 app.use(cors());
@@ -16,6 +16,9 @@ app.use(express.json());
 
 app.use('/uploads', express.static('uploads'));
 // routes
+app.get('/', (req, res) => {
+  res.send('Homeo Cure backend is running');
+});
 app.use('/api/auth', authRoutes);
 app.use('/api/doctor', doctorRoutes );
 app.use('/api/blog', blogRoutes); 
@@ -24,7 +27,7 @@ app.use('/api/admin',adminRoutes);
 app.use('/api/payment',paymentRoutes);
 
 
-
-connectDB().then(()=>{
-    // app.listen(PORT, ()=> console.log('Server running on', PORT));
-});
+connectDB();
+// connectDB().then(()=>{
+//     // app.listen(PORT, ()=> console.log('Server running on', PORT));
+// });
