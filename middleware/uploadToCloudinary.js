@@ -1,6 +1,7 @@
 // import cloudinary from "../config/cloudinary.js";
 // import fs from "fs";
 const cloudinary = require('../db_config/cloudinery');
+const streamifier = require('streamifier');
 // const fs= require('fs');
 
 /**
