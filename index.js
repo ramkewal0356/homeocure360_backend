@@ -29,16 +29,16 @@ app.use('/api/payment', paymentRoutes);
 
 // ---------------- DB Middleware ----------------
 // Connect DB on each request using singleton
-connectDB();
-// app.use(async (req, res, next) => {
-//   try {
-//     await connectDB();
-//     next();
-//   } catch (err) {
-//     console.error(err);
-//     res.status(500).json({ error: 'Database connection failed' });
-//   }
-// });
+// connectDB();
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Database connection failed' });
+  }
+});
 
 // ---------------- Export app ----------------
 module.exports = app; // no app.listen()
