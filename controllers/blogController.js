@@ -20,7 +20,7 @@ exports.createBlog = async (req, res) => {
     if (req.file) {
       // Upload to cloudinary
     //   imageUrl = await uploadFile(req.file.path,"uploads",);
-    imageUrl = await uploadToCloudinary(req.file.path,"uploads");
+    imageUrl = await uploadToCloudinary(req.file.buffer,"uploads");
     }
 
     const blog = await Blog.create({
