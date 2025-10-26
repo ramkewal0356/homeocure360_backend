@@ -26,19 +26,28 @@ app.use('/api/blog', blogRoutes);
 app.use('/api/appointment', appointmentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/payment', paymentRoutes);
+// Detect environment and PORT
+const ENV = process.env.NODE_ENV || "development";
+const PORT = process.env.PORT || 4000;
 
+// Only start the Express listener if NOT on Vercel
+if (ENV !== "production") {
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running in ${ENV} mode on port ${PORT}`);
+  });
+}
 // ---------------- DB Middleware ----------------
 // Connect DB on each request using singleton
-// connectDB();
-app.use(async (req, res, next) => {
-  try {
-    await connectDB();
-    next();
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Database connection failed' });
-  }
-});
+connectDB();
+// app.use(async (req, res, next) => {
+//   try {
+//     await connectDB();
+//     next();
+//   } catch (err) {
+//     console.error(err);
+//     res.status(500).json({ error: 'Database connection failed' });
+//   }
+// });
 
 // ---------------- Export app ----------------
 module.exports = app; // no app.listen()
