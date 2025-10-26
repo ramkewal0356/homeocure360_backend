@@ -9,7 +9,7 @@ const connectDB = async () => {
       ? process.env.MONGODB_URI
       : process.env.LOCAL_MONGO_URI;
   try {
-    await mongoose.connect(URI);
+    await mongoose.connect(URI,{serverSelectionTimeoutMS:30000});
     console.log("✅ MongoDB connected successfully");
   } catch (error) {
     console.error("❌ MongoDB connection failed:", error.message);
