@@ -15,19 +15,23 @@ exports.getVerifiedBlogs = async (req, res) => {
 exports.createBlog = async (req, res) => {
     try {
          const { title, content } = req.body;
-    let imageUrl = null;
-
-    if (req.file) {
-      // Upload to cloudinary
-    //   imageUrl = await uploadFile(req.file.path,"uploads",);
-    imageUrl = await uploadToCloudinary(req.file.buffer,"uploads");
+          if (!req.file) {
+      return res.status(400).json({ success: false, message: "No file uploaded" });
     }
 
+    // let imageUrl = null;
+
+    // if (req.file) {
+    //   // Upload to cloudinary
+    // //   imageUrl = await uploadFile(req.file.path,"uploads",);
+   
+    // }
+const result = await uploadToCloudinary(req.file.buffer,"uploads");
     const blog = await Blog.create({
       doctorId: req.user.id,
       title,
       content,
-      image: imageUrl,
+      image: result.url,
     });
 
     res.json({ success: true, blog });

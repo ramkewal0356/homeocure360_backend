@@ -1,9 +1,10 @@
 const router = require('express').Router();
 const { getProfile, updateProfile, getAppointments, createBlog, getBlogs, registerDoctor, loginDoctor, getSubscribedDoctors } = require('../controllers/doctorController');
 const authMiddleware = require('../middleware/authMiddleware');
-const multer = require('multer');
+// const multer = require('multer');
 
-const upload = multer({ dest: 'uploads/' });
+// const upload = multer({ dest: 'uploads/' });
+const upload = require('../middleware/multer.upload');
 
 // router.use(authMiddleware('doctor'));
 router.post('/register', registerDoctor);

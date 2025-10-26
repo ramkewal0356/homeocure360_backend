@@ -4,8 +4,9 @@ const Appointment = require('../models/Appointment');
 const Subscription = require('../models/Subscription');
 const User = require('../models/User');
 const jwt = require("jsonwebtoken");
-const cloudinary= require('../db_config/cloudinery');
-const fs = require("fs");
+// const cloudinary= require('../db_config/cloudinery');
+// const fs = require("fs");
+const uploadToCloudinary = require('../middleware/uploadToCloudinary');
 // Doctor register
 exports.registerDoctor = async (req,res)=>{
   try {
@@ -74,27 +75,30 @@ exports.getAppointments = async (req, res) => {
 exports.createBlog = async (req, res) => {
     try {
          const { title, content } = req.body;
-    let imageUrl = null;
+    // let imageUrl = null;
 
-    if (req.file) {
-      // Upload to cloudinary
-      const result = await cloudinary.uploader.upload(req.file.path, {
-        folder: "uploads",
-      });
+    // if (req.file) {
+    //   // Upload to cloudinary
+    //   const result = await cloudinary.uploader.upload(req.file.path, {
+    //     folder: "uploads",
+    //   });
 
-      imageUrl = result.secure_url;
+    //   imageUrl = result.secure_url;
 
-      // Delete local file after upload
-      fs.unlink(req.file.path, (err) => {
-        if (err) console.error("Error deleting local file:", err);
-      });
+    //   // Delete local file after upload
+    //   fs.unlink(req.file.path, (err) => {
+    //     if (err) console.error("Error deleting local file:", err);
+    //   });
+    // }
+   if (!req.file) {
+      return res.status(400).json({ success: false, message: "No file uploaded" });
     }
-
+    const result = await uploadToCloudinary(req.file.buffer,"uploads");
     const blog = await Blog.create({
       doctorId: req.user.id,
       title,
       content,
-      image: imageUrl,
+      image: result.url,
     });
 
     res.json({ success: true, blog });
