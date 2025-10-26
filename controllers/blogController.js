@@ -1,5 +1,6 @@
+const { uploadToCloudinary } = require('../middleware/uploadToCloudinary');
 const Blog = require('../models/Blog');
-const uploadFile= require('../utils/cloudinary.upload');
+// const uploadFile= require('../utils/cloudinary.upload');
 // Public: Get all verified blogs
 exports.getVerifiedBlogs = async (req, res) => {
     try {
@@ -18,7 +19,8 @@ exports.createBlog = async (req, res) => {
 
     if (req.file) {
       // Upload to cloudinary
-      imageUrl = await uploadFile(req.file.path,"uploads",);
+    //   imageUrl = await uploadFile(req.file.path,"uploads",);
+    imageUrl = await uploadToCloudinary(req.file.path,"uploads");
     }
 
     const blog = await Blog.create({

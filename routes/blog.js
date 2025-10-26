@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const authMiddleware = require('../middleware/authMiddleware');
-const upload = require('../middleware/upload')
+// const upload = require('../middleware/upload')
+const upload= require('../middleware/multer.upload');
 const {
     getVerifiedBlogs,
     createBlog,
