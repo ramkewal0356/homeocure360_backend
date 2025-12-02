@@ -1,10 +1,11 @@
 const router = require('express').Router();
 const authMiddleware = require('../middleware/authMiddleware');
-const { createSubscription, verifyPayment } = require('../controllers/paymentController');
+const paymentCtrl = require('../controllers/paymentController');
 
-router.use(authMiddleware('doctor'));
+// router.use(authMiddleware('doctor'));
 
-router.post('/create-subscription', createSubscription);
-router.post('/verify', verifyPayment);
+router.post('/create-order', paymentCtrl.createOrder);
+router.post('/verify-payment', paymentCtrl.verifyPayment);
+router.post("/save-temp", paymentCtrl.saveTempData);
 
 module.exports = router;

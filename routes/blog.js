@@ -1,27 +1,37 @@
 const router = require('express').Router();
 const authMiddleware = require('../middleware/authMiddleware');
-// const upload = require('../middleware/upload')
 const upload= require('../middleware/multer.upload');
-const {
-    getVerifiedBlogs,
-    createBlog,
-    getDoctorBlogs,
-    verifyBlog,
-    deleteBlog,
-    getAllBlog
-} = require('../controllers/blogController');
+const blogController = require('../controllers/blogController');
 
-// Public: Get verified blogs
-router.get('/verified', getVerifiedBlogs);
-router.get('/get_all_blogs',getAllBlog);
-// Doctor routes
-// router.use(authMiddleware('doctor'));
-router.post('/create_blog',authMiddleware('doctor'), upload.single('image'), createBlog);
-router.get('/my', getDoctorBlogs);
 
-// Admin routes
-router.use(authMiddleware('admin'));
-router.put('/verify', verifyBlog);
-router.delete('/:blogId', deleteBlog);
+// ---------------------- DOCTOR ROUTES ----------------------
+
+// create blog
+router.post("/create-blog", authMiddleware('doctor'), upload.single("image"), blogController.createBlog);
+
+// my blogs
+router.get("/getDoctorBlogs", authMiddleware('doctor'), blogController.getDoctorBlogs);
+
+// update blog
+router.put("/update-blog/:blogId", authMiddleware('doctor'), upload.single("image"), blogController.updateBlog);
+
+// delete blog (both admin and doctor allowed)
+router.delete("/deleteblog/:blogId", blogController.deleteBlog);
+
+// ---------------------- PUBLIC ROUTES ----------------------
+
+// all blogs
+router.get("/get_all_blogs", blogController.getAllBlog);
+router.get("/bloglist", blogController.listBlogs); 
+// single blog
+router.get("/getBlogById/:id", blogController.getSingleBlog);
+
+router.put("/:id/view", blogController.incrementView);   // increment view
+router.put("/:id/like", blogController.likeBlog);        // like (IP-based)
+router.post("/:id/comment", blogController.addComment);  // add comment
+router.post("/:id/comment/:commentId/reply", blogController.addReply); // add reply
+
+// ---------------------- ADMIN ROUTE (optional) ----------------------
+// router.delete("/admin/blog/:blogId", authAdmin, deleteBlog);
 
 module.exports = router;

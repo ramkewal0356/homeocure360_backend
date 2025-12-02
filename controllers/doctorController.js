@@ -4,14 +4,13 @@ const Appointment = require('../models/Appointment');
 const Subscription = require('../models/Subscription');
 const User = require('../models/User');
 const jwt = require("jsonwebtoken");
-// const cloudinary= require('../db_config/cloudinery');
-// const fs = require("fs");
+
 const uploadToCloudinary = require('../middleware/uploadToCloudinary');
 // Doctor register
 exports.registerDoctor = async (req,res)=>{
   try {
-    const { name, email, password,qualification,experience,specialties,bio } = req.body;
-    const doctor = new Doctor({ name, email, password,qualification,experience,specialties,bio });
+    const { name, email,phone, password,qualification,experience, consultationFee,specialties,bio } = req.body;
+    const doctor = new Doctor({ name, email, phone,password,qualification,experience,consultationFee,specialties,bio });
     await doctor.save();
     res.status(201).json({ success:true, message:"Registered successfully, waiting admin verification" ,id:doctor.id});
   } catch(err) {
@@ -39,7 +38,12 @@ exports.loginDoctor = async (req,res)=>{
 // Get doctor profile
 exports.getProfile = async (req, res) => {
     try {
-        const doctor = await Doctor.findOne({ userId: req.user.id });
+        const doctor = await Doctor.findById(req.user.id).select("-password");
+
+        if (!doctor) {
+            return res.status(404).json({ message: "Doctor not found" });
+        }
+
         res.json(doctor);
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -50,71 +54,145 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
     try {
         const updateData = {
-            specialization: req.body.specialization,
+            name: req.body.name,
+            email: req.body.email,
+            phone:req.body.phone,
+            qualification: req.body.qualification,
+            experience: req.body.experience,
+            specialties: req.body.specialties,
+            consultationFee: req.body.consultationFee,
+            bio: req.body.bio,
         };
-        if (req.file) updateData.profileImage = req.file.filename;
 
-        const doctor = await Doctor.findOneAndUpdate({ userId: req.user.id }, updateData, { new: true, upsert: true });
-        res.json(doctor);
+        // If image uploaded
+        if (req.file) {
+      const result = await uploadToCloudinary(req.file.buffer, "uploads");
+      updateData.profileImage = result.url;
+    }
+
+        const doctor = await Doctor.findByIdAndUpdate(
+            req.user.id,
+            updateData,
+            { new: true }
+        ).select("-password");
+
+        if (!doctor) {
+            return res.status(404).json({ message: "Doctor not found" });
+        }
+
+        res.json({
+            message: "Profile updated successfully",
+            doctor,
+        });
+
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
 };
+
 
 // Get own appointments
 exports.getAppointments = async (req, res) => {
     try {
-        const appointments = await Appointment.find({ doctorId: req.user.id }).populate('doctorId', 'name email');
-        res.json(appointments);
+        const doctorId = req.user.id;
+
+        // Query params
+        const search = req.query.search || "";
+        const status = req.query.status || ""; 
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
+        // Build filter
+        let filter = { doctorId };
+
+        if (search) {
+            filter.patientName = { $regex: search, $options: "i" };
+        }
+
+        if (status) {
+            filter.status = status;
+        }
+
+        // Fetch data
+        const [appointments, total] = await Promise.all([
+            Appointment.find(filter)
+                .populate("doctorId", "name email")
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit),
+
+            Appointment.countDocuments(filter),
+        ]);
+
+        const totalPages = Math.ceil(total / limit);
+
+        res.json({
+            success: true,
+            
+           data: appointments,
+            pagination:{
+              page,
+            totalPages,
+            total,
+            }
+        });
+
     } catch (err) {
         res.status(500).json({ message: err.message });
     }
 };
 
-// Doctor blogs CRUD
-exports.createBlog = async (req, res) => {
-    try {
-         const { title, content } = req.body;
-    // let imageUrl = null;
 
-    // if (req.file) {
-    //   // Upload to cloudinary
-    //   const result = await cloudinary.uploader.upload(req.file.path, {
-    //     folder: "uploads",
-    //   });
 
-    //   imageUrl = result.secure_url;
+exports.getDashboard = async (req, res) => {
+  try {
+    const doctorId = req.user.id; // set by auth middleware
 
-    //   // Delete local file after upload
-    //   fs.unlink(req.file.path, (err) => {
-    //     if (err) console.error("Error deleting local file:", err);
-    //   });
-    // }
-   if (!req.file) {
-      return res.status(400).json({ success: false, message: "No file uploaded" });
-    }
-    const result = await uploadToCloudinary(req.file.buffer,"uploads");
-    const blog = await Blog.create({
-      doctorId: req.user.id,
-      title,
-      content,
-      image: result.url,
+    // counts
+    const appointmentsCount = await Appointment.countDocuments({ doctorId });
+    const blogsCount = await Blog.countDocuments({ doctorId });
+
+    // earnings in last 6 months (example)
+    const earningsAgg = await Appointment.aggregate([
+      { $match: { doctorId: doctorId, status: "Completed" } },
+      { $group: { _id: null, total: { $sum: "$fee" } } },
+    ]);
+    const earnings = earningsAgg[0]?.total || 0;
+
+    // recent appointments
+    const recentAppointments = await Appointment.find({ doctorId })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .select("patientName date time status fee type");
+
+    // small series for chart (you should create real monthly aggregation)
+    const earningsSeries = {
+      labels: ["Jun", "Jul", "Aug", "Sep", "Oct", "Nov"],
+      values: [8000, 12000, 9000, 15000, 17000, 19000],
+    };
+
+    // optionally calculate newPatients / cancelled
+    const newPatients = 12;
+    const cancelled = 2;
+
+    return res.json({
+      appointmentsCount,
+      blogsCount,
+      earnings,
+      subscription: { status: "Active - Monthly" /* or real data */ },
+      newPatients,
+      cancelled,
+      recentAppointments,
+      earningsSeries,
     });
 
-    res.json({ success: true, blog });
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
+  } catch (err) {
+    console.error("dashboard error", err);
+    res.status(500).json({ message: "Server error" });
+  }
 };
 
-exports.getBlogs = async (req, res) => {
-    try {
-        const blogs = await Blog.find({ doctorId: req.user.id }).populate("doctorId", "name email");
-        res.json(blogs);
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-};
 // Get all subscribed doctors (public)
 exports.getSubscribedDoctors = async (req, res) => {
   try {

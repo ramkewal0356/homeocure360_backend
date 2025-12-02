@@ -9,6 +9,9 @@ const blogRoutes = require('./routes/blog');
 const appointmentRoutes = require('./routes/appointment');
 const adminRoutes = require('./routes/admin');
 const paymentRoutes = require('./routes/payment');
+const contactRoutes= require('./routes/contact');
+const slotRoutes= require('./routes/slot');
+const subscriptionRoutes = require('./routes/subscription');
 
 const app = express();
 app.use(cors());
@@ -26,6 +29,9 @@ app.use('/api/blog', blogRoutes);
 app.use('/api/appointment', appointmentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/payment', paymentRoutes);
+app.use('/api/subscription',subscriptionRoutes)
+app.use('/api/contact',contactRoutes);
+app.use('/api/slot',slotRoutes)
 // Detect environment and PORT
 const ENV = process.env.NODE_ENV || "development";
 const PORT = process.env.PORT || 4000;

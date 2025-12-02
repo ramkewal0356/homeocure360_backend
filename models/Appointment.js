@@ -12,9 +12,14 @@ const appointmentSchema = new mongoose.Schema({
   patientName: { type: String, required: true },
   patientEmail: { type: String },
   patientPhone: { type: String, required: true },
+  razorpayOrderId:{type:String},
+  razorpayPaymentId:{type:String},
   date: { type: Date, required: true },
   time: { type: String, required: true },
   reason: { type: String },
+  fee:Number,
+  type:{type:String,enum:['Online','Offline'],default:"Offline"},
+   status: { type: String, enum: ['pending','paid'], default: 'pending' }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Appointment', appointmentSchema);
