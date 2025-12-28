@@ -49,6 +49,55 @@ exports.getProfile = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
+// Get public doctor details (for website / app users)
+exports.getDoctorDetailsPublic = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+
+    const doctor = await Doctor.findById(doctorId).select(
+      "name email phone qualification experience specialties consultationFee bio profileImage"
+    );
+
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: "Doctor not found",
+      });
+    }
+
+    // Optional: check verification
+    // if (!doctor.isVerified) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Doctor not verified",
+    //   });
+    // }
+
+    res.status(200).json({
+      success: true,
+      doctor: {
+        _id: doctor._id,
+        name: doctor.name,
+        qualification: doctor.qualification,
+        specialty: doctor.specialties?.join(", "),
+        experience: doctor.experience,
+        image: doctor.profileImage,
+        about: doctor.bio,
+        rating: doctor.rating || 4.5,
+        email: doctor.email,
+        phone: doctor.phone,
+        consultationFee: doctor.consultationFee,
+        timings: doctor.timings || "Mon - Sat, 10:00 AM - 7:00 PM",
+      },
+    });
+  } catch (err) {
+    console.error("Doctor details error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
 
 // Update profile image and specialization
 exports.updateProfile = async (req, res) => {
