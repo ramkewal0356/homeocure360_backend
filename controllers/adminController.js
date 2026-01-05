@@ -47,22 +47,165 @@ exports.loginAdmin = async (req,res)=>{
     res.status(500).json({ success:false, message: err.message });
   }
 };
-// Verify a doctor
-exports.verifyDoctor = async (req, res) => {
-    try {
-    //     const { doctorId } = req.params.id;
-    //     const doctor = await Doctor.findByIdAndUpdate(doctorId, { isVerified: true }, { new: true });
-    //    if(!doctor) return res.status(404).json({ message: "Doctor not found" });
-    // res.json({ success: true, doctor });
-     const doctor = await Doctor.findById(req.params.id);
-    if(!doctor) return res.status(404).json({ success:false, message:"Doctor not found" });
-    doctor.isVerified = true;
-    await doctor.save();
-    res.json({ success:true, message:"Doctor verified successfully" });
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
+
+
+exports.getDashboardStats = async (req, res) => {
+  try {
+    // Doctors
+    const totalDoctors = await Doctor.countDocuments();
+    const verifiedDoctors = await Doctor.countDocuments({ isVerified: true });
+    const pendingDoctors = await Doctor.countDocuments({ isVerified: false });
+    const subscribedDoctors = await Doctor.countDocuments({ subscription: true });
+
+    // Appointments
+    const totalAppointments = await Appointment.countDocuments();
+
+    // Revenue (only completed appointments)
+    const revenueAgg = await Appointment.aggregate([
+      { $match: { status: "Completed" } },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: { $sum: "$fee" },
+        },
+      },
+    ]);
+
+    const totalRevenue = revenueAgg[0]?.totalRevenue || 0;
+
+    res.json({
+      success: true,
+      doctors: {
+        totalDoctors,
+        verifiedDoctors,
+        pendingDoctors,
+        subscribedDoctors,
+      },
+      appointments: {
+        totalAppointments,
+      },
+      revenue: totalRevenue,
+    });
+  } catch (err) {
+    console.error("Doctor stats error:", err);
+    res.status(500).json({ message: err.message });
+  }
 };
+exports.getRecentAppointments = async (req, res) => {
+  try {
+    const appointments = await Appointment.find()
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .populate("doctorId", "name")
+      // .populate("userId", "name")
+      .select("date status patientName doctorId");
+
+    const formatted = appointments.map((a) => ({
+      _id: a._id,
+      patientName: a.patientName || a.userId?.name || "N/A",
+      doctorName: a.doctorId?.name || "N/A",
+      date: a.date,
+      status: a.status,
+    }));
+
+    res.json({
+      success: true,
+      data: formatted,
+    });
+  } catch (err) {
+    console.error("Recent appointments error:", err);
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ADMIN: Get all doctors (with pagination & filter)
+exports.getAllDoctorsForAdmin = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      search = "",
+      verified,
+    } = req.query;
+
+    const pageNumber = parseInt(page);
+    const limitNumber = parseInt(limit);
+    const skip = (pageNumber - 1) * limitNumber;
+
+    // 🔍 Search filter
+    let filter = {};
+
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { email: { $regex: search, $options: "i" } },
+        { phone: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    // ✅ Verified / Unverified filter
+    if (verified === "true") filter.isVerified = true;
+    if (verified === "false") filter.isVerified = false;
+
+    const [doctors, total] = await Promise.all([
+      Doctor.find(filter)
+        .select("-password")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNumber),
+
+      Doctor.countDocuments(filter),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: doctors,
+      pagination: {
+        page: pageNumber,
+        limit: limitNumber,
+        total,
+        totalPages: Math.ceil(total / limitNumber),
+      },
+    });
+  } catch (err) {
+    console.error("Admin doctor list error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+// ADMIN: Verify doctor
+exports.verifyDoctor = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+const {isVerified}=req.body
+    const doctor = await Doctor.findByIdAndUpdate(
+      doctorId,
+      { isVerified: isVerified },
+      { new: true }
+    ).select("-password");
+
+    if (!doctor) {
+      return res.status(404).json({
+        success: false,
+        message: "Doctor not found",
+      });
+    }
+
+    res.json({
+      success: true,
+      message: "Doctor verified successfully",
+      doctor,
+    });
+  } catch (err) {
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
 
 // Manage users, doctors, blogs
 exports.getAllDoctors = async (req, res) => {
@@ -79,6 +222,51 @@ exports.getAllBlogs = async (req, res) => {
     const blogs = await Blog.find().populate('doctorId', 'userId');
     res.json(blogs);
 };
+// ADMIN: Get all blogs
+exports.getAllBlogsAdmin = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = "" } = req.query;
+
+    const filter = search
+      ? { title: { $regex: search, $options: "i" } }
+      : {};
+
+    const blogs = await Blog.find(filter)
+      .populate("doctorId", "name email")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit));
+
+    const total = await Blog.countDocuments(filter);
+
+    res.json({
+      success: true,
+      data: blogs,
+      pagination: {
+        page: Number(page),
+        totalPages: Math.ceil(total / limit),
+        total,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+// ADMIN: Delete blog
+exports.deleteBlogAdmin = async (req, res) => {
+  try {
+    const blog = await Blog.findByIdAndDelete(req.params.blogId);
+
+    if (!blog) {
+      return res.status(404).json({ success: false, message: "Blog not found" });
+    }
+
+    res.json({ success: true, message: "Blog deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 
 // See all appointments
 exports.getAllAppointments = async (req, res) => {
