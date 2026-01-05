@@ -48,20 +48,19 @@ exports.loginAdmin = async (req,res)=>{
   }
 };
 
-
 exports.getDashboardStats = async (req, res) => {
   try {
-    // Doctors
+    // ---------------- Doctors Counts ----------------
     const totalDoctors = await Doctor.countDocuments();
     const verifiedDoctors = await Doctor.countDocuments({ isVerified: true });
     const pendingDoctors = await Doctor.countDocuments({ isVerified: false });
     const subscribedDoctors = await Doctor.countDocuments({ subscription: true });
 
-    // Appointments
+    // ---------------- Appointments ----------------
     const totalAppointments = await Appointment.countDocuments();
 
-    // Revenue (only completed appointments)
-    const revenueAgg = await Appointment.aggregate([
+    // Appointment Revenue (Completed only)
+    const appointmentRevenueAgg = await Appointment.aggregate([
       { $match: { status: "Completed" } },
       {
         $group: {
@@ -71,7 +70,34 @@ exports.getDashboardStats = async (req, res) => {
       },
     ]);
 
-    const totalRevenue = revenueAgg[0]?.totalRevenue || 0;
+    const appointmentRevenue =
+      appointmentRevenueAgg[0]?.totalRevenue || 0;
+
+    // ---------------- Subscription Revenue ----------------
+    const PLAN_PRICES = {
+      monthly: 499,
+      yearly: 4999,
+    };
+
+    const subscriptionAgg = await Doctor.aggregate([
+      { $match: { subscription: true } },
+      {
+        $group: {
+          _id: "$subscriptionPlan",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    let subscriptionRevenue = 0;
+
+    subscriptionAgg.forEach((item) => {
+      const price = PLAN_PRICES[item._id] || 0;
+      subscriptionRevenue += price * item.count;
+    });
+
+    // ---------------- Total Revenue ----------------
+    const totalRevenue = appointmentRevenue + subscriptionRevenue;
 
     res.json({
       success: true,
@@ -84,13 +110,18 @@ exports.getDashboardStats = async (req, res) => {
       appointments: {
         totalAppointments,
       },
-      revenue: totalRevenue,
+      revenue: {
+        appointmentRevenue,
+        subscriptionRevenue,
+        totalRevenue,
+      },
     });
   } catch (err) {
-    console.error("Doctor stats error:", err);
+    console.error("Dashboard stats error:", err);
     res.status(500).json({ message: err.message });
   }
 };
+
 exports.getRecentAppointments = async (req, res) => {
   try {
     const appointments = await Appointment.find()
